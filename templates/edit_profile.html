@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Edit Profile{% endblock %}
+
+{% block content %}
+<style>
+  .edit-form {
+    max-width: 600px;
+    margin: 40px auto;
+    background: linear-gradient(to right, #83a4d4, #b6fbff);
+    padding: 30px;
+    border-radius: 15px;
+    box-shadow: 0 0 15px rgba(0,0,0,0.2);
+    color: #333;
+    font-family: 'Segoe UI', sans-serif;
+  }
+
+  .edit-form h2 {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+
+  .edit-form label {
+    font-weight: bold;
+    display: block;
+    margin: 10px 0 5px;
+  }
+
+  .edit-form input, .edit-form textarea {
+    width: 100%;
+    padding: 10px;
+    border: none;
+    border-radius: 8px;
+    margin-bottom: 15px;
+  }
+
+  .edit-form button {
+    background-color: #333;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    width: 100%;
+  }
+
+  .edit-form button:hover {
+    background-color: #555;
+  }
+</style>
+
+<div class="edit-form">
+  <h2>Edit Profile</h2>
+  <form method="POST">
+    <label>Email</label>
+    <input type="email" name="email" value="{{ user.email }}" required>
+
+    <label>Phone Number</label>
+    <input type="text" name="phone_number" value="{{ user.phone_number }}" required>
+
+    <label>Address</label>
+    <textarea name="address" rows="4" required>{{ user.address }}</textarea>
+
+    <button type="submit">Save Changes</button>
+  </form>
+</div>
+{% endblock %}

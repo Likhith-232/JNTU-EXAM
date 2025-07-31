@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Exam Summary - JNTU GV{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 600px; margin: 2rem auto; text-align: center;">
+    <h2 style="margin-bottom: 1rem;">Exam Summary</h2>
+
+    <canvas id="resultChart" width="300" height="300"></canvas>
+
+    <div style="margin-top: 1.5rem;">
+        <p><strong>Score:</strong> {{ score }}/{{ total }}</p>
+        <p><strong>Correct:</strong> {{ correct }} | <strong>Wrong:</strong> {{ wrong }}</p>
+        <a href="{{ url_for('dashboard') }}" class="btn btn-primary mt-3">
+            <i class="fas fa-home"></i> Back to Dashboard
+        </a>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const ctx = document.getElementById('resultChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: ['Correct', 'Wrong'],
+            datasets: [{
+                data: [{{ correct }}, {{ wrong }}],
+                backgroundColor: ['#4caf50', '#f44336'],
+                borderWidth: 1,
+                radius: '60%'  // ✅ Decreased radius here
+            }]
+        },
+        options: {
+            responsive: true
+        }
+    });
+</script>
+
+{% endblock %}

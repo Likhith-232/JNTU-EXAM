@@ -1,0 +1,27 @@
+<h2>All Registered Users</h2>
+<table>
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Roll No</th>
+            <th>Email</th>
+            <th>Phone Number</th>
+            <th>Branch</th>
+            <th>Gender</th>
+            <th>Registered On</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for user in users %}
+        <tr>
+            <td>{{ user.name }}</td>
+            <td>{{ user.roll_no }}</td>
+            <td>{{ user.email }}</td>
+            <td>{{ user.phone_number }}</td>
+            <td>{{ user.branch }}</td>
+            <td>{{ user.gender }}</td>
+            <td>{{ user.created_at.strftime('%d-%m-%Y') }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>

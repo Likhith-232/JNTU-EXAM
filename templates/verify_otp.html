@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Verify OTP</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins&display=swap');
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(135deg, #ff6a00, #ee0979);
+      height: 100vh;
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: white;
+    }
+
+    .container {
+      background: rgba(255, 255, 255, 0.12);
+      padding: 2rem 3rem;
+      border-radius: 14px;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+      width: 320px;
+      text-align: center;
+      animation: slideUpFade 1s ease forwards;
+    }
+
+    h2 {
+      margin-bottom: 1.5rem;
+      font-weight: 600;
+    }
+
+    form {
+      display: flex;
+      flex-direction: column;
+    }
+
+    label {
+      margin-bottom: 0.5rem;
+      font-size: 0.9rem;
+      text-align: left;
+    }
+
+    input[type="text"] {
+      padding: 0.9rem;
+      border: none;
+      border-radius: 10px;
+      margin-bottom: 1.5rem;
+      font-size: 1.1rem;
+      letter-spacing: 0.3em;
+      text-align: center;
+      background: rgba(255, 255, 255, 0.25);
+      color: #fff;
+      transition: box-shadow 0.3s ease;
+    }
+
+    input[type="text"]:focus {
+      outline: none;
+      box-shadow: 0 0 10px #f8a5c2;
+      background: rgba(255, 255, 255, 0.35);
+    }
+
+    button {
+      background: #d63031;
+      border: none;
+      padding: 1rem;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 1.1rem;
+      color: white;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+
+    button:hover {
+      background: #b71c1c;
+    }
+
+    @keyframes slideUpFade {
+      from {opacity: 0; transform: translateY(30px);}
+      to {opacity: 1; transform: translateY(0);}
+    }
+
+    /* Flash message styles */
+    .flash-container {
+      margin-bottom: 1rem;
+    }
+
+    .flash-message {
+      padding: 0.8rem;
+      border-radius: 8px;
+      font-weight: 500;
+      margin-bottom: 0.5rem;
+      animation: fadeIn 0.6s ease-out;
+    }
+
+    .flash-message.success {
+      background-color: #00b894;
+      color: white;
+    }
+
+    .flash-message.error {
+      background-color: #d63031;
+      color: white;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Verify OTP</h2>
+
+    <!-- 🧠 Flash Message Block -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flash-container">
+          {% for category, message in messages %}
+            <div class="flash-message {{ category }}">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <form method="post" action="{{ url_for('verify_otp') }}">
+      <label for="otp">Enter 4-digit OTP:</label>
+      <input type="text" id="otp" name="otp" maxlength="4" minlength="4" required pattern="\d{4}" placeholder="____" autocomplete="one-time-code" />
+      <button type="submit">Verify</button>
+    </form>
+  </div>
+</body>
+</html>

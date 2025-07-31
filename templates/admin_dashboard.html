@@ -1,0 +1,88 @@
+<h3>Logged in as: {{ session['admin'] }}</h3>
+<a href="{{ url_for('admin_logout') }}">Logout</a>
+
+<h2>All Student Results</h2>
+
+<!-- Action Buttons -->
+<div class="action-buttons">
+  <a href="{{ url_for('download_results_csv') }}" class="btn-action">Download Results CSV</a>
+  <a href="{{ url_for('clear_results') }}" class="btn-action btn-clear" onclick="return confirm('Are you sure you want to clear all results? This action cannot be undone.')">Clear All Results</a>
+
+  {% if results.has_prev %}
+  <a href="{{ url_for('admin_dashboard', page=results.prev_num) }}" class="btn-action">← Prev</a>
+{% endif %}
+
+{% if results.has_next %}
+  <a href="{{ url_for('admin_dashboard', page=results.next_num) }}" class="btn-action">Next →</a>
+{% endif %}
+
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Roll No</th>
+      <th>Exam</th>
+      <th>Score</th>
+      <th>Total</th>
+      <th>Date</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for result, user, exam in results.items %}
+    <tr>
+      <td>{{ user.name }}</td>
+      <td>{{ user.roll_no }}</td>
+      <td>{{ exam.title }}</td>
+      <td>{{ result.score }}</td>
+      <td>{{ result.total_marks }}</td>
+      <td>{{ result.completed_at.strftime('%d-%m-%Y %H:%M') }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<style>
+  .action-buttons {
+    margin: 15px 0 30px 0;
+  }
+  .btn-action {
+    display: inline-block;
+    margin-right: 10px;
+    padding: 10px 15px;
+    background: #667eea;
+    color: white;
+    text-decoration: none;
+    border-radius: 5px;
+    font-weight: bold;
+    transition: background 0.3s ease;
+  }
+  .btn-action:hover {
+    background: #5563c1;
+  }
+  .btn-clear {
+    background: #e94e4e !important;
+  }
+  .btn-clear:hover {
+    background: #c74444 !important;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+  }
+  th, td {
+    padding: 10px 12px;
+    border: 1px solid #ccc;
+    text-align: left;
+  }
+  th {
+    background-color: #667eea;
+    color: white;
+  }
+  tr:nth-child(even) {
+    background-color: #f9f9f9;
+  }
+</style>
