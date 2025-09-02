@@ -10,29 +10,34 @@ from io import StringIO
 import random
 from flask_mail import Mail, Message
 from itsdangerous import URLSafeTimedSerializer
-from flask_mail import Message
 from flask import render_template_string
-
+import click
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'your-secret-key-here'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://likhith_kumar_mankala_user:E962RQNUyvW9cmpIKsAqBkOM7UWoz8oe@dpg-d2rbqhbe5dus73d3ulg0-a.singapore-postgres.render.com/likhith_kumar_mankala'
 
+# --- Configuration ---
+# SECURITY: Load sensitive credentials from environment variables
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'default-secret-key-for-dev')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'postgresql://user:password@localhost/mydb')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
+
+# Email Configuration
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 587
 app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USERNAME'] = 'likhithmanakala@gmail.com'
-app.config['MAIL_PASSWORD'] = 'rgvvqecqnysxqzeh'
-app.config['MAIL_DEFAULT_SENDER'] = 'likhithmanakala@gmail.com'
-mail = Mail(app)
-s = URLSafeTimedSerializer(app.config['SECRET_KEY'])
-from itsdangerous import URLSafeTimedSerializer
+app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
+app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
+app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_USERNAME')
 
-# Setup
+# --- Extensions ---
+db = SQLAlchemy(app)
+mail = Mail(app)
 serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
 
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
+# -------------------- Helper Functions for Tokens --------------------
 def generate_token(email):
     return serializer.dumps(email, salt='password-reset')
 
@@ -41,10 +46,6 @@ def verify_token(token, max_age=1800):  # 30 minutes expiry
         return serializer.loads(token, salt='password-reset', max_age=max_age)
     except Exception:
         return None
-
-
-db = SQLAlchemy(app)
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 # -------------------- Database Models --------------------
 class User(db.Model):
@@ -59,7 +60,7 @@ class User(db.Model):
     password_hash = db.Column(db.String(120), nullable=False)
     profile_pic = db.Column(db.String(120), default='default.jpg')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
+
 class Exam(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(100), nullable=False)
@@ -69,7 +70,6 @@ class Exam(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     is_active = db.Column(db.Boolean, default=True)
 
-# models.py
 class Question(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     exam_id = db.Column(db.Integer, db.ForeignKey('exam.id'), nullable=False)
@@ -132,6 +132,7 @@ def admin_login():
             return redirect(url_for('admin_dashboard'))
         flash('Invalid admin credentials', 'error')
     return render_template('admin_login.html')
+
 @app.route('/admin/dashboard')
 def admin_dashboard():
     if not is_admin_logged_in():
@@ -147,6 +148,7 @@ def admin_dashboard():
         .paginate(page=page, per_page=per_page)
 
     return render_template('admin_dashboard.html', results=paginated_results)
+
 @app.route('/admin/results/download')
 def download_results_csv():
     if not is_admin_logged_in():
@@ -172,7 +174,6 @@ def clear_results():
     if not is_admin_logged_in():
         return redirect(url_for('admin_login'))
 
-    # Delete all exam results
     try:
         num_deleted = ExamResult.query.delete()
         db.session.commit()
@@ -187,48 +188,40 @@ def clear_results():
 def admin_users():
     if not is_admin_logged_in():
         return redirect(url_for('admin_login'))
-
     users = User.query.order_by(User.created_at.desc()).all()
     return render_template('admin_users.html', users=users)
+
 @app.route('/admin/leaderboard')
 def admin_leaderboard():
-    # Allow access without login like /admin/users
     exams = Exam.query.all()
     leaderboard_data = []
-
     for exam in exams:
-        # Get all results for this exam, ordered by score desc and time asc
         results = ExamResult.query.filter_by(exam_id=exam.id)\
-                    .order_by(ExamResult.score.desc(), ExamResult.completed_at.asc()).all()
-
+            .order_by(ExamResult.score.desc(), ExamResult.completed_at.asc()).all()
+        
         leaderboard_entries = []
         rank = 1
         prev_score = None
         display_rank = 1
-
         for i, res in enumerate(results):
             if prev_score is None or res.score != prev_score:
                 display_rank = rank
-            # If same score, same rank as before
-
+            
             leaderboard_entries.append({
                 'rank': display_rank,
                 'name': res.user.name,
-                'roll_number': res.user.roll_no,  # ✅ CORRECTED LINE
+                'roll_number': res.user.roll_no,
                 'score': res.score,
                 'completed_at': res.completed_at.strftime('%Y-%m-%d %H:%M:%S')
             })
-
             prev_score = res.score
             rank += 1
-
+            
         leaderboard_data.append({
             'exam': exam,
             'entries': leaderboard_entries
         })
-
     return render_template('admin_leaderboard.html', leaderboard=leaderboard_data)
-
 
 @app.route('/admin/logout')
 def admin_logout():
@@ -243,26 +236,21 @@ def register():
         data = request.form
         roll_no = data['roll_no']
 
-        # Validation
         if len(roll_no) != 10 or not roll_no.isalnum():
             flash("Roll number must be exactly 10 alphanumeric characters.", "error")
             return render_template('register.html')
-
         if User.query.filter_by(email=data['email']).first():
             flash('Email already registered', 'error')
             return render_template('register.html')
-
         if User.query.filter_by(roll_no=roll_no).first():
             flash('Roll number already registered', 'error')
             return render_template('register.html')
-
         if len(data['password']) < 8:
             flash('Password must be at least 8 characters long', 'error')
             return render_template('register.html')
 
         file = request.files.get('profile_pic')
         profile_pic = save_profile_pic(file)
-
         user = User(
             name=data['name'],
             roll_no=roll_no,
@@ -278,7 +266,6 @@ def register():
         db.session.commit()
         flash('Registration successful! Please login.', 'success')
         return redirect(url_for('login'))
-
     return render_template('register.html')
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -306,34 +293,19 @@ def logout():
 def dashboard():
     if not is_logged_in():
         return redirect(url_for('login'))
-
     user = User.query.get(session['user_id'])
-
-    # TEMP DEBUG: Get all exams (without filtering by is_active)
     exams = Exam.query.order_by(Exam.id).all()
-
-    # DEBUG OUTPUT - Show all exams in console
-    print("=== Exams from DB ===")
-    for exam in exams:
-        print(f"ID: {exam.id}, Title: {exam.title}, is_active: {getattr(exam, 'is_active', 'N/A')}")
-
-    # Fetch user's results
     results = ExamResult.query.filter_by(user_id=user.id).all()
-
     total_exams = len(exams)
     completed_exams = len(results)
     avg_score = sum(r.score for r in results) / len(results) if results else 0
-
     progress_stats = {
         'total_exams': total_exams,
         'completed_exams': completed_exams,
         'avg_score': round(avg_score, 1),
         'completion_rate': round((completed_exams / total_exams * 100) if total_exams > 0 else 0, 1)
     }
-
-    # Clear submitted flag after use
     session.pop('exam_submitted', None)
-
     return render_template(
         'dashboard.html',
         user=user,
@@ -346,38 +318,31 @@ def dashboard():
 def take_exam(exam_id):
     if not is_logged_in():
         return redirect(url_for('login'))
-
     existing_result = ExamResult.query.filter_by(user_id=session['user_id'], exam_id=exam_id).first()
     if existing_result:
         flash("You have already taken this exam.", "info")
         return redirect(url_for('results'))
-
     exam = Exam.query.get_or_404(exam_id)
     questions = Question.query.filter_by(exam_id=exam_id).all()
-
     return render_template('exam.html', exam=exam, questions=questions,
                            current_question=1, total_questions=len(questions))
+
 @app.route('/submit_exam', methods=['POST'])
 def submit_exam():
     if not is_logged_in():
         return redirect(url_for('login'))
-
     data = request.json
     exam_id = data.get('exam_id')
     answers = data.get('answers', {})
     time_taken = data.get('time_taken')
-
     submitted_exams = session.get('submitted_exams', [])
     if str(exam_id) in submitted_exams:
         return jsonify({'success': False, 'message': 'You already submitted this exam'})
-
     exam = Exam.query.get_or_404(exam_id)
     questions = Question.query.filter_by(exam_id=exam_id).all()
-
     score = 0
     correct_answers_count = 0
     wrong_answers_count = 0
-
     for question in questions:
         user_answer = answers.get(str(question.id))
         if user_answer == question.correct_answer:
@@ -385,7 +350,6 @@ def submit_exam():
             correct_answers_count += 1
         else:
             wrong_answers_count += 1
-
     result = ExamResult(
         user_id=session['user_id'],
         exam_id=exam_id,
@@ -396,11 +360,8 @@ def submit_exam():
     )
     db.session.add(result)
     db.session.commit()
-
-    # ✅ Mark this exam as submitted in session
     submitted_exams.append(str(exam_id))
     session['submitted_exams'] = submitted_exams
-
     return jsonify({
         'success': True,
         'score': score,
@@ -410,7 +371,6 @@ def submit_exam():
         'exam_id': exam_id
     })
 
-
 @app.route('/result_summary')
 def result_summary():
     score = int(request.args.get('score', 0))
@@ -419,12 +379,10 @@ def result_summary():
     wrong = int(request.args.get('wrong', 0))
     return render_template("result_summary.html", score=score, total=total, correct=correct, wrong=wrong)
 
-
 @app.route('/results')
 def results():
     if not is_logged_in():
         return redirect(url_for('login'))
-
     user_results = db.session.query(ExamResult, Exam)\
         .join(Exam).filter(ExamResult.user_id == session['user_id']).all()
     return render_template('results.html', user_results=user_results)
@@ -434,39 +392,31 @@ def profile():
     if not is_logged_in():
         flash("Please log in to view profile", "error")
         return redirect(url_for('login'))
-
     user = User.query.get(session['user_id'])
     results = db.session.query(ExamResult, Exam)\
         .join(Exam).filter(ExamResult.user_id == user.id).all()
     return render_template('profile.html', user=user, results=results)
+
 @app.route('/profile/edit', methods=['GET', 'POST'])
 def edit_profile():
     if not is_logged_in():
         flash("Please log in to edit your profile", "error")
         return redirect(url_for('login'))
-
     user = User.query.get(session['user_id'])
-
     if request.method == 'POST':
         new_email = request.form.get('email')
         new_phone = request.form.get('phone_number')
         new_address = request.form.get('address')
-
-        # Optional: Check for email uniqueness
         if User.query.filter(User.email == new_email, User.id != user.id).first():
             flash("Email already in use", "error")
             return render_template('edit_profile.html', user=user)
-
         user.email = new_email
         user.phone_number = new_phone
         user.address = new_address
-
         db.session.commit()
         flash("Profile updated successfully", "success")
         return redirect(url_for('profile'))
-
     return render_template('edit_profile.html', user=user)
-
 
 @app.route('/forgot-password', methods=['GET', 'POST'])
 def forgot_password():
@@ -488,90 +438,55 @@ def reset_password(token):
     if not email:
         flash('Invalid or expired token.', 'danger')
         return redirect(url_for('forgot_password'))
-
     if request.method == 'POST':
         new_password = request.form['password']
         user = User.query.filter_by(email=email).first()
-        user.password_hash = generate_password_hash(new_password)
-        db.session.commit()
-        flash('Password reset successfully!', 'success')
-        return redirect(url_for('login'))
-
+        if user:
+            user.password_hash = generate_password_hash(new_password)
+            db.session.commit()
+            flash('Password reset successfully!', 'success')
+            return redirect(url_for('login'))
     return render_template('reset_password.html', token=token)
-
-@app.route('/init_db')
-def init_db_route():
-    db.create_all()
-    return "Database initialized!"
-
-@app.route('/check_db')
-def check_db():
-    try:
-        user_count = User.query.count()
-        return f"Connected! Total users in DB: {user_count}"
-    except Exception as e:
-        return f"Database connection failed: {e}"
 
 def send_reset_email(email, reset_url):
     subject = "🔐 Password Reset Request"
-    sender = "likhithmanakala@gmail.com"  # Set your sender email
-
-    # HTML version
     html_body = render_template_string("""
     <html>
       <body style="font-family: 'Segoe UI', sans-serif; color: #333; background-color: #f9f9f9; padding: 30px;">
         <div style="max-width: 600px; margin: auto; background: #fff; border-radius: 8px; padding: 30px; box-shadow: 0 5px 15px rgba(0,0,0,0.1);">
           <h2 style="color: #10b981;">Reset Your Password</h2>
           <p>Hello,</p>
-          <p>We received a request to reset the password associated with this email address.</p>
-          <p>If you made this request, please click the button below to reset your password:</p>
+          <p>We received a request to reset the password for this email address.</p>
+          <p>Click the button below to reset your password:</p>
           <p style="text-align: center; margin: 30px 0;">
             <a href="{{ reset_url }}" style="background: #10b981; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold;">Reset Password</a>
           </p>
           <p>This link will expire in <strong>30 minutes</strong>.</p>
           <p>If you did not request this, you can safely ignore this email.</p>
-          <br />
-          <p style="font-size: 0.9rem; color: #888;">Thanks,<br>Your Website Team</p>
         </div>
       </body>
     </html>
     """, reset_url=reset_url)
-
-    # Plain text version (fallback)
-    text_body = f"""Hello,
-
-We received a request to reset your password.
-
-To reset it, please click the following link:
-{reset_url}
-
-This link will expire in 30 minutes.
-
-If you did not request this, please ignore this email.
-
-Thanks,
-Your Website Team
-"""
-
-    # Send message
-    msg = Message(subject, recipients=[email])
-    msg.body = text_body
-    msg.html = html_body
-    msg.sender = sender
-
+    msg = Message(subject, recipients=[email], html=html_body)
     mail.send(msg)
 
+# -------------------- CLI Commands --------------------
+@app.cli.command("init-db")
+def init_db_command():
+    """Creates the database tables and the admin user."""
+    db.create_all()
+    if not Admin.query.first():
+        admin_user = os.environ.get('ADMIN_USER', 'admin')
+        admin_pass = os.environ.get('ADMIN_PASS', 'admin123')
+        admin = Admin(username=admin_user, password_hash=generate_password_hash(admin_pass))
+        db.session.add(admin)
+        db.session.commit()
+        click.echo('Initialized the database and created admin user.')
+    else:
+        click.echo('Database already initialized.')
 
-
-
-# -------------------- Initial DB Seeder --------------------
 if __name__ == "__main__":
-    with app.app_context():
-        db.create_all()
-        if not Admin.query.first():
-            admin = Admin(username='admin', password_hash=generate_password_hash('admin123'))
-            db.session.add(admin)
-            db.session.commit()
-
+    # This is for local development only.
+    # The production server (Gunicorn) will not run this.
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
