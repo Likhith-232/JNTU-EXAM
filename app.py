@@ -81,7 +81,6 @@ class Question(db.Model):
     correct_answer = db.Column(db.String(1), nullable=False)
     marks = db.Column(db.Integer, nullable=False)
 
-
 class ExamResult(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
@@ -91,7 +90,10 @@ class ExamResult(db.Model):
     time_taken = db.Column(db.Integer)
     completed_at = db.Column(db.DateTime, default=datetime.utcnow)
     answers = db.Column(db.Text)
-user = db.relationship('User', backref='results')
+
+    user = db.relationship('User', backref='results')
+    exam = db.relationship('Exam', backref='results')
+
 class Admin(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), unique=True, nullable=False)
@@ -212,7 +214,7 @@ def admin_leaderboard():
             leaderboard_entries.append({
                 'rank': display_rank,
                 'name': res.user.name,
-                'roll_number': res.user.roll_number,
+                'roll_number': res.user.roll_no,  # ✅ CORRECTED LINE
                 'score': res.score,
                 'completed_at': res.completed_at.strftime('%Y-%m-%d %H:%M:%S')
             })
@@ -573,4 +575,3 @@ if __name__ == "__main__":
 
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
-
