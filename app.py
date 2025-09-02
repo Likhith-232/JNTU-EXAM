@@ -16,7 +16,7 @@ from flask import render_template_string
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://jntu_db_user:40OU1X3HaYcu6UU9ak0nMnLZA7LUPb7z@dpg-d2366kre5dus73aagg8g-a.singapore-postgres.render.com/jntu_db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://likhith_kumar_mankala_user:E962RQNUyvW9cmpIKsAqBkOM7UWoz8oe@dpg-d2rbqhbe5dus73d3ulg0-a.singapore-postgres.render.com/likhith_kumar_mankala'
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
