@@ -326,30 +326,44 @@ def take_exam(exam_id):
     questions = Question.query.filter_by(exam_id=exam_id).all()
     return render_template('exam.html', exam=exam, questions=questions,
                            current_question=1, total_questions=len(questions))
-
 @app.route('/submit_exam', methods=['POST'])
 def submit_exam():
     if not is_logged_in():
         return redirect(url_for('login'))
+        
     data = request.json
-    exam_id = data.get('exam_id')
+    
+    # --- FIX 1: Ensure exam_id is an integer ---
+    try:
+        exam_id = int(data.get('exam_id'))
+    except (ValueError, TypeError):
+        return jsonify({'success': False, 'message': 'Invalid exam ID format'})
+
     answers = data.get('answers', {})
     time_taken = data.get('time_taken')
+    
     submitted_exams = session.get('submitted_exams', [])
     if str(exam_id) in submitted_exams:
         return jsonify({'success': False, 'message': 'You already submitted this exam'})
+        
     exam = Exam.query.get_or_404(exam_id)
     questions = Question.query.filter_by(exam_id=exam_id).all()
+    
     score = 0
     correct_answers_count = 0
     wrong_answers_count = 0
+    
     for question in questions:
         user_answer = answers.get(str(question.id))
-        if user_answer == question.correct_answer:
+        
+        # --- FIX 2: Make the comparison more robust ---
+        # Check if user_answer exists, and compare in a case-insensitive way, ignoring whitespace.
+        if user_answer is not None and user_answer.strip().upper() == question.correct_answer.strip().upper():
             score += question.marks
             correct_answers_count += 1
         else:
             wrong_answers_count += 1
+            
     result = ExamResult(
         user_id=session['user_id'],
         exam_id=exam_id,
@@ -360,8 +374,10 @@ def submit_exam():
     )
     db.session.add(result)
     db.session.commit()
+    
     submitted_exams.append(str(exam_id))
     session['submitted_exams'] = submitted_exams
+    
     return jsonify({
         'success': True,
         'score': score,
@@ -370,7 +386,6 @@ def submit_exam():
         'wrong': wrong_answers_count,
         'exam_id': exam_id
     })
-
 @app.route('/result_summary')
 def result_summary():
     score = int(request.args.get('score', 0))
